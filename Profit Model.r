@@ -15,23 +15,40 @@ library("caret")
 
 # COMMAND ----------
 
-# MAGIC %python
-# MAGIC import pandas as pd
-# MAGIC 
-# MAGIC hedgerow = pd.read_parquet('/dbfs/mnt/lab/unrestricted/elm/uptake/elmo_features/elmo_sfi23_profit/2023-04-03.parquet')
-# MAGIC 
-# MAGIC #elmo_features.to_csv('/dbfs/mnt/lab/unrestricted/elm/uptake/elmo_features/2023-02-21.csv')
-# MAGIC 
-# MAGIC hedgerow.to_csv('/dbfs/mnt/lab/unrestricted/elm/uptake/elmo_features/elmo_sfi23_profit/2023-04-03.csv')
+#%python
+#import pandas as pd
+#
+#hedgerow = pd.read_parquet('/dbfs/mnt/lab/unrestricted/elm/uptake/elmo_features/elmo_sfi23_profit/2023-04-03.parquet')
+#hedgerow.to_csv('/dbfs/mnt/lab/unrestricted/elm/uptake/elmo_features/elmo_sfi23_profit/2023-04-03.csv')
+
+
+# COMMAND ----------
+
+#%python
+#
+#dbutils.fs.mv('dbfs:/FileStore/total_ELM_profit_no_negatives_James.csv',
+#             'dbfs:/mnt/lab/unrestricted/elm/uptake/elmo_features/elmo_sfi23_profit/2023-04-13.csv')
+
+# COMMAND ----------
+
+#%python
+#import pandas as pd
+
+#sfi23 = pd.read_parquet('/dbfs/mnt/lab/unrestricted/elm/uptake/elmo_features/elmo_sfi23_profit/2023-04-04.parquet')
+
+
+#sfi23.to_csv('/dbfs/mnt/lab/unrestricted/elm/uptake/elmo_features/elmo_sfi23_profit/2023-04-04.csv')
 
 # COMMAND ----------
 
 wfms_mod <- read.csv('/dbfs/mnt/lab/unrestricted/elm/uptake/wfms_sfi.csv')
 hedgerow <- read.csv('/dbfs/mnt/lab/unrestricted/elm/uptake/elmo_features/elmo_sfi23_profit/2023-04-03.csv')
+sfi23 <- read.csv("/dbfs/mnt/lab/unrestricted/elm/uptake/elmo_features/elmo_sfi23_profit/2023-04-13.csv")
+
 
 # COMMAND ----------
 
-display(hedgerow)
+names(sfi23)
 
 # COMMAND ----------
 
@@ -46,7 +63,19 @@ hedgerow_business <- hedgerow %>%
 
 # COMMAND ----------
 
-wfms_mod <- wfms_mod %>% filter(region != 0)
+names(sfi23)
+
+# COMMAND ----------
+
+wfms_mod <- wfms_mod %>% 
+filter(region != 0) %>%
+left_join(sfi23,by="id_business")
+
+
+
+# COMMAND ----------
+
+display(wfms_mod)
 
 # COMMAND ----------
 
@@ -60,28 +89,30 @@ wfms_mod <- wfms_mod %>% filter(region != 0)
 
 # COMMAND ----------
 
+display(wfms_mod)
+
+# COMMAND ----------
+
 # Split the data into training and test set
 
 set.seed(2345)
-sample <- wfms_mod$total_sfi_profit %>%
+sample <- wfms_mod$total_profit %>%
   createDataPartition(p = 0.7, list = FALSE)
 train_data  <- wfms_mod[sample, ]
 test_data <- wfms_mod[-sample, ]
 
 # COMMAND ----------
 
-min(test_data$total_sfi_profit)
+min(test_data$total_profit)
 
 # COMMAND ----------
 
-lm_profit0 <- lm(total_sfi_profit ~ 
-                any_sfi 
+lm_profit0 <- lm(total_profit ~ 
                 + aes 
                 + total_gm 
                 + bps_eligible_area
                 + livestock_lu
-                + farm_type 
-                + aonb 
+                + farm_type
                 + region 
                 + gm_per_ha
                 , data = train_data)
@@ -104,15 +135,14 @@ print(R2(prediction0, test_data$total_sfi_profit))
 
 # COMMAND ----------
 
-lm_profit1 <- lm(total_sfi_profit ~ 
-                + aes 
+lm_profit1 <- lm(total_profit ~ 
+                + aes
                 + total_gm 
                 + bps_eligible_area
                 + livestock_lu
-                + farm_type 
-                + aonb 
+                + farm_type
                 + gm_per_ha
-                , data = train_data)
+                , data = wfms_mod)
 
 summary(lm_profit1)
 
@@ -149,9 +179,17 @@ summary(lm_profit)
 
 # COMMAND ----------
 
-saveRDS(lm_profit, "lm_profit.rds")
+names(model)
 
-#model <- readRDS("lm_profit.rds")
+# COMMAND ----------
+
+(model$coefficients)
+
+# COMMAND ----------
+
+saveRDS(lm_profit, file = "/dbfs/mnt/lab/unrestricted/elm/uptake/lm_profit1.rds")
+
+model <- readRDS(file = "/dbfs/mnt/lab/unrestricted/elm/uptake/lm_profit1.rds")
 
 # COMMAND ----------
 
